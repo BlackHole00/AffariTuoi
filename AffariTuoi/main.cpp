@@ -144,12 +144,16 @@ BOOL WINAPI test(DWORD fdwCtrlType)
 }
 
 
-
+/*	Funzione DisegnaValigia
+* 
+*	Serve per disegnare una valigia con un numero all'interno
+*/
 void DisegnaValigia(HANDLE hConsole, COORD coord, int num)
 {
 	string temp;
 	temp = to_string(num);
 
+	//	Aggiungiamo un carattere nel caso stiamo utilizzando un colore custom per il background
 	if (num < 10)
 		temp += " ";
 
@@ -159,7 +163,11 @@ void DisegnaValigia(HANDLE hConsole, COORD coord, int num)
 }
 
 
-
+/*	Funzione DisegnaPartita
+*	
+*	Disegna la partita.
+*	DESCRIZONE DA AMPLIARE
+*/
 void DisegnaPartita(HANDLE hConsole, bool valigie[], int selected)
 {
 	DrawBorders(hConsole, SCREEN_SIZE);
@@ -177,9 +185,7 @@ void DisegnaPartita(HANDLE hConsole, bool valigie[], int selected)
 				SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
 			}
 			else
-			{
 				DisegnaValigia(hConsole, coord, i + 1);
-			}
 		}
 
 		coord.X += GRANDEZZA_VALIGIA.X + 1;
@@ -195,30 +201,33 @@ void DisegnaPartita(HANDLE hConsole, bool valigie[], int selected)
 }
 
 
-
+/*	Funzione Menu	
+*
+*	Disegna il menu principale (che è più estetico), poi chiede all'utente se
+*		vuole avviare un nuovo gioco o caricare una salvataggio precedente.
+*	Ritorna la scelta dell'utente (0 = nuovo gioco; 1 = Carica salvataggio).
+* 
+*	NOTA:
+*		-Aggiorniamo lo schermo solo quando otteniamo un input dall'utente o
+*			quando sappiamo che dobbiamo cambiare il colore di qualche scritta
+*/
 int Menu(HANDLE hConsole)
 {
-	DrawBorders(hConsole, SCREEN_SIZE);
-	HideCursor(hConsole);
-
 	int clock = 0;
 	int selected = 0;
 
 	FrameData valigiaAnimata = GetAnimatedFramesFromFiles(VALIGIA_FILE_ROOT, 4);
 
-
+	HideCursor(hConsole);
+	//	Disegnamo il menu per la prima volta.
 	DrawMainMenu(hConsole, clock, valigiaAnimata);
-	while (1)
+	while (!(GetAsyncKeyState(VK_RETURN) || (GetAsyncKeyState(VK_SPACE))))
 	{
+		//	Controlliamo se dobbiamo ridisegnare lo schermo
 		if (AggiornaClock(OttieniDelta(), 4, clock))
 		{
 			_CLS;
 			DrawMainMenu(hConsole, clock, valigiaAnimata);
-		}
-
-		if (GetAsyncKeyState(VK_SPACE))
-		{
-			break;
 		}
 	}
 
@@ -227,24 +236,26 @@ int Menu(HANDLE hConsole)
 
 	clock = 0;
 	DrawSelectionMenu(hConsole, clock, selected);
-	while (1)
+	while (!((GetAsyncKeyState(VK_RETURN) & KEY_JUST_PRESSED) || ((GetAsyncKeyState(VK_SPACE)) & KEY_JUST_PRESSED)))
 	{
+		//	Se dobbiamo cambiare colore di qualcosa è stato ricevuto un input importante ridisegnamo lo schermo
 		if (AggiornaClock(OttieniDelta(), 4, clock) || ControllaSelectionMenuKeys(hConsole, selected))
 		{
 			_CLS;
 			DrawSelectionMenu(hConsole, clock, selected);
 		}
-
-		if (GetAsyncKeyState(VK_RETURN))
-			return selected;
 	}
 
-	return 1;
+	return selected;
 }
 
-
+/*	Funzione DrawMainMenu	
+*
+*	Disegna il Menu Principale.Utilizza il parametro clock per sapere di che colore disegnare le cose.
+*/
 void DrawMainMenu(HANDLE hConsole, int clock, FrameData datiValigia)
 {
+	//	Disegna i bordi
 	DrawBorders(hConsole, SCREEN_SIZE);
 
 	//	Disegna valigia animata
@@ -267,19 +278,29 @@ void DrawMainMenu(HANDLE hConsole, int clock, FrameData datiValigia)
 		DrawStringInBox(hConsole, { 23, 2 }, "AFFARI TUOI", FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
 }
 
-
+/*	Funzione DrawMainMenu
+*
+*	Disegna il Menu Principale.Utilizza il parametro clock per sapere di che colore disegnare le cose.
+*/
 void DrawSelectionMenu(HANDLE hConsole, int clock, int selection)
 {
+	//	Disegna i bordi
 	DrawBorders(hConsole, SCREEN_SIZE);
 	
+	//	Disegna la scritta AFFARI TUOI
 	if (clock % 2)
 		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "AFFARI TUOI", FOREGROUND_RED, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
 	else
 		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "AFFARI TUOI", FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
 
+	//	Disegna la scrtta MENU PRINCIPALE
+	if (clock % 2)
+		SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
+	else
+		SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_RED);
 	DrawStringCentered(hConsole, "MENU PRINCIPALE", { SCREEN_SIZE.X / 2, 4 });
 
-
+	//	Disegna gli item del menu a seconda di cosa è selezionato
 	//	TODO trova un metodo migliore 
 	if (selection)
 	{
@@ -300,10 +321,18 @@ void DrawSelectionMenu(HANDLE hConsole, int clock, int selection)
 		DrawStringCentered(hConsole, "CARICA  GIOCO", { SCREEN_SIZE.X / 2, 8 });
 	}
 
+	//	Disegna una scatola attorno agli item del menu
 	DrawBox(hConsole, { SCREEN_SIZE.X / 2 - 7, 6 }, { SCREEN_SIZE.X / 2 + 7, 9 });
+
+	DrawStringCentered(hConsole, "FRECCE: Seleziona INVIO: Accetta", { SCREEN_SIZE.X / 2 + 1, 11 });
 }
 
 
+/*	Funzione ControllaSelectionMenuKeys
+* 
+*	Serve a controllare gli input nel secondo menu della funzione menu.
+*	Cambia il valore di selection. Se selection cambia ritorniamo true.
+*/
 bool ControllaSelectionMenuKeys(HANDLE hConsole, int& selection)
 {
 	if ((GetAsyncKeyState(VK_UP) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_DOWN) & KEY_JUST_PRESSED))
@@ -326,6 +355,11 @@ bool ControllaSelectionMenuKeys(HANDLE hConsole, int& selection)
 }
 
 
+/*	Funzione OttieniDelta
+*	
+*	Serve per trovare la differenza di tempo in millisecondi dall'ultima volta che questa funzione è stata chiamata.
+*	La prima volta che viene chiamata ritorna 0 (o quasi).
+*/
 float OttieniDelta()
 {
 	static time_t old;
@@ -337,6 +371,14 @@ float OttieniDelta()
 }
 
 
+/*	Funzione AggiornaClock
+* 
+*	Funzione che aggiorna il valore del clock.
+*	Utilizzando un contatore interno e la differenza in millisecondi aggiorna clock circa ogni secondo.
+*	Ritorna true se clock è stato modificato.
+*	Questa funzione è stata pensata per l'utilizzo in combo con le funzioni DrawMainMenu e simili, che
+*		hanno bisogno di un valore per sapere di che colore disegnare le cose.
+*/
 bool AggiornaClock(float delta, int valoreMassimoClock, int& clock)
 {
 	static float time = 0;
