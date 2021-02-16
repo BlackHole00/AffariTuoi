@@ -29,6 +29,13 @@ inline void DrawStringAtPos(HANDLE hConsole, string text, COORD pos)
 }
 
 
+void DrawStringCentered(HANDLE hConsole, string text, COORD pos)
+{
+	SetConsoleCursorPosition(hConsole, { pos.X - (short int)text.length() / 2, pos.Y });
+	WriteConsoleA(hConsole, text.c_str(), text.length(), NULL, NULL);
+}
+
+
 void DrawBox(HANDLE hConsole, COORD startPos, COORD endPos)
 {
 	DrawCharAtPos(hConsole, 0xC9, startPos);
@@ -48,6 +55,12 @@ void DrawBox(HANDLE hConsole, COORD startPos, COORD endPos)
 	for (int i = startPos.X + 1; i < endPos.X; i++)
 		DrawChar(hConsole, 0xCD);
 	DrawChar(hConsole, 0xBC);
+}
+
+//	Non Usare: BUGGATO!!!
+void DrawBoxCentered(HANDLE hConsole, COORD centerPos, COORD BoxSize)
+{
+	DrawBox(hConsole, { centerPos.X - BoxSize.X / 2, centerPos.Y - BoxSize.Y / 2 }, { centerPos.X + BoxSize.X / 2, centerPos.Y + BoxSize.Y / 2 });
 }
 
 
@@ -86,6 +99,14 @@ void DrawStringInBox(HANDLE hConsole, COORD coord, string parola, WORD attributi
 	DrawStringAtPos(hConsole, parola, { coord.X + 1, coord.Y + 1 });
 
 	SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+}
+
+
+void DrawStringInBoxCentered(HANDLE hConsole, COORD coord, string parola, WORD attributiParola, WORD attributiBox)
+{
+	short int length = parola.length();
+
+	DrawStringInBox(hConsole, { coord.X - length / 2 - 1, coord.Y - 1 }, parola, attributiParola, attributiBox);
 }
 
 

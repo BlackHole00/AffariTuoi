@@ -19,7 +19,11 @@ BOOL WINAPI test(DWORD);
 void DisegnaValigia(HANDLE, COORD, int);
 void DisegnaPartita(HANDLE, bool[], int);
 
-void DisegnaMenu(HANDLE);
+int Menu(HANDLE);
+void DrawMainMenu(HANDLE, int, FrameData);
+void DrawSelectionMenu(HANDLE, int, int);
+
+bool ControllaSelectionMenuKeys(HANDLE, int&);
 
 float OttieniDelta();
 bool AggiornaClock(float, int, int&);
@@ -59,15 +63,21 @@ int main()
 	string temp[25];
 	int lung = 0;
 
-	SetConsoleCursorPosition(hConsole, { 3, 6 });
-
 	LeggiPremiNulliDaFile("nulli.txt", 3, temp, lung);
 
-	DisegnaMenu(hConsole);
+	int res = Menu(hConsole);
+	_CLS;
+	if (res)	//	res == 1
+	{
+		SetConsoleCursorPosition(hConsole, { 0, 0 });
+		DrawStringAtPos(hConsole, "DA IMPLEMENTARE!!!\n", {0, 0});
+	}
+	else
+	{
+		DisegnaPartita(hConsole, valigie, 3);
+	}
 
-	DisegnaPartita(hConsole, valigie, 3);
-
-	SetConsoleCursorPosition(hConsole, { 0, 15 });
+	SetConsoleCursorPosition(hConsole, { 0, SCREEN_SIZE.Y + 1 });
 
 	return 0;
 }
@@ -186,42 +196,24 @@ void DisegnaPartita(HANDLE hConsole, bool valigie[], int selected)
 
 
 
-void DisegnaMenu(HANDLE hConsole)
+int Menu(HANDLE hConsole)
 {
 	DrawBorders(hConsole, SCREEN_SIZE);
 	HideCursor(hConsole);
 
-	float delta = 0;
 	int clock = 0;
+	int selected = 0;
 
 	FrameData valigiaAnimata = GetAnimatedFramesFromFiles(VALIGIA_FILE_ROOT, 4);
 
+
+	DrawMainMenu(hConsole, clock, valigiaAnimata);
 	while (1)
 	{
-		SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN);
-		//DisegnaValigiaMenu(hConsole, clock);
-		DrawFrame(hConsole, valigiaAnimata, clock, { 3, 1 });
-		SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
-		
-		if (clock % 2)
-			SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
-		else
-			SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
-		SetConsoleCursorPosition(hConsole, { 5, 10 });
-		WriteConsoleA(hConsole, ">>>PREMI SPAZIO PER COMINCIARE<<<", 35, NULL, NULL);
-		SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
-
-
-		if (clock % 2)
-			DrawStringInBox(hConsole, { 23, 2 }, "AFFARI TUOI", FOREGROUND_RED, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
-		else
-			DrawStringInBox(hConsole, { 23, 2 }, "AFFARI TUOI", FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
-		
-
 		if (AggiornaClock(OttieniDelta(), 4, clock))
 		{
 			_CLS;
-			DrawBorders(hConsole, SCREEN_SIZE);
+			DrawMainMenu(hConsole, clock, valigiaAnimata);
 		}
 
 		if (GetAsyncKeyState(VK_SPACE))
@@ -232,6 +224,105 @@ void DisegnaMenu(HANDLE hConsole)
 
 	_CLS;
 	delete[] valigiaAnimata;
+
+	clock = 0;
+	DrawSelectionMenu(hConsole, clock, selected);
+	while (1)
+	{
+		if (AggiornaClock(OttieniDelta(), 4, clock) || ControllaSelectionMenuKeys(hConsole, selected))
+		{
+			_CLS;
+			DrawSelectionMenu(hConsole, clock, selected);
+		}
+
+		if (GetAsyncKeyState(VK_RETURN))
+			return selected;
+	}
+
+	return 1;
+}
+
+
+void DrawMainMenu(HANDLE hConsole, int clock, FrameData datiValigia)
+{
+	DrawBorders(hConsole, SCREEN_SIZE);
+
+	//	Disegna valigia animata
+	SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN);
+	DrawFrame(hConsole, datiValigia, clock, { 3, 1 });
+	SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+
+	//	Disegna >>>PREMI SPAZIO PER COMINCIARE<<< 
+	if (clock % 2)
+		SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_INTENSITY);
+	else
+		SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY);
+	DrawStringCentered(hConsole, ">>>PREMI SPAZIO PER COMINCIARE<<<", { SCREEN_SIZE.X / 2, 10 });
+	SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+
+	//Disegna affari tuoi dentro una scatola
+	if (clock % 2)
+		DrawStringInBox(hConsole, { 23, 2 }, "AFFARI TUOI", FOREGROUND_RED, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+	else
+		DrawStringInBox(hConsole, { 23, 2 }, "AFFARI TUOI", FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+}
+
+
+void DrawSelectionMenu(HANDLE hConsole, int clock, int selection)
+{
+	DrawBorders(hConsole, SCREEN_SIZE);
+	
+	if (clock % 2)
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "AFFARI TUOI", FOREGROUND_RED, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+	else
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "AFFARI TUOI", FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+
+	DrawStringCentered(hConsole, "MENU PRINCIPALE", { SCREEN_SIZE.X / 2, 4 });
+
+
+	//	TODO trova un metodo migliore 
+	if (selection)
+	{
+		SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+		DrawStringCentered(hConsole, "NUOVO GIOCO", { SCREEN_SIZE.X / 2, 7 });
+
+		SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+		DrawStringCentered(hConsole, "CARICA  GIOCO", { SCREEN_SIZE.X / 2, 8 });
+
+		SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+	}
+	else
+	{
+		SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+		DrawStringCentered(hConsole, "NUOVO GIOCO", { SCREEN_SIZE.X / 2, 7 });
+
+		SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+		DrawStringCentered(hConsole, "CARICA  GIOCO", { SCREEN_SIZE.X / 2, 8 });
+	}
+
+	DrawBox(hConsole, { SCREEN_SIZE.X / 2 - 7, 6 }, { SCREEN_SIZE.X / 2 + 7, 9 });
+}
+
+
+bool ControllaSelectionMenuKeys(HANDLE hConsole, int& selection)
+{
+	if ((GetAsyncKeyState(VK_UP) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_DOWN) & KEY_JUST_PRESSED))
+	{
+		selection = !selection;
+		return true;
+	}
+	if (GetAsyncKeyState(0x31)) //	1
+	{
+		selection = 0;
+		return true;
+	}
+	if (GetAsyncKeyState(0x32))	//	2
+	{
+		selection = 1;
+		return true;
+	}
+
+	return false;
 }
 
 

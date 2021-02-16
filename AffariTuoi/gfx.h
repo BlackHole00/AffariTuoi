@@ -3,6 +3,7 @@
 using namespace std;
 
 #define _CLS system("cls")
+#define KEY_JUST_PRESSED 0x01
 
 typedef string* FrameData;
 
@@ -16,10 +17,13 @@ inline void DrawCharAtPos(HANDLE, char, COORD);
 inline void DrawString(HANDLE, string);
 inline void DrawStringAtPos(HANDLE, string, COORD);
 
+void DrawStringCentered(HANDLE, string, COORD);
 void DrawBox(HANDLE, COORD, COORD);
+void DrawBoxCentered(HANDLE, COORD, COORD);
 void DrawLine(HANDLE, COORD, int, char, TipoLinea);
 void DrawBorders(HANDLE, COORD);
 void DrawStringInBox(HANDLE, COORD, string, WORD, WORD);
+void DrawStringInBoxCentered(HANDLE, COORD, string, WORD, WORD);
 
 void HideCursor(HANDLE);
 void HideCursor(HANDLE);
