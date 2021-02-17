@@ -141,9 +141,13 @@
   <ItemGroup>
     <ClCompile Include="gfx.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="menu.cpp" />
+    <ClCompile Include="timeUtilis.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gfx.h" />
+    <ClInclude Include="menu.h" />
+    <ClInclude Include="timeUtilis.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -177,6 +177,15 @@ void DrawStringInBoxCentered(HANDLE hConsole, COORD coord, string parola, WORD a
 	DrawStringInBox(hConsole, { coord.X - length / 2 - 1, coord.Y - 1 }, parola, attributiParola, attributiBox);
 }
 
+
+void ClearArea(HANDLE hConsole, COORD startPos, COORD endPos)
+{
+	for (short int x = startPos.X; x < endPos.X; x++)
+		for (short int y = startPos.Y; y < endPos.Y; y++)
+			DrawCharAtPos(hConsole, ' ', { x, y });
+}
+
+
 /*	Funzione HideCursor
 * 
 *	Rende il cursore invisibile.

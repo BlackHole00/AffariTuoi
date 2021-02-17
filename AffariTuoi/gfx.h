@@ -1,3 +1,4 @@
+#pragma once
 /*	File:		gfx.h
 *	Autore:		Vicix
 *	
@@ -47,6 +48,7 @@ void DrawLine(HANDLE, COORD, int, char, TipoLinea);
 void DrawBorders(HANDLE, COORD);
 void DrawStringInBox(HANDLE, COORD, string, WORD, WORD);
 void DrawStringInBoxCentered(HANDLE, COORD, string, WORD, WORD);
+void ClearArea(HANDLE, COORD, COORD);
 
 void HideCursor(HANDLE);
 void HideCursor(HANDLE);
