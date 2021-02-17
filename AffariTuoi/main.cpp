@@ -8,24 +8,42 @@ using namespace std;
 #include "menu.h"
 #include "timeUtilis.h"
 
+enum TipoPacco
+{
+	denaro,
+	oggetto
+};
+
+struct StructPacco
+{
+	bool chiuso = true;
+	TipoPacco contenuto;
+	float monte_premi;
+	string premio_scarto;
+};
+
 const COORD GRANDEZZA_VALIGIA = { 3, 2 };
 const COORD SCREEN_SIZE = { 43, 12 };
 const int NUMERO_VALIGIE = 20;
 
 const string DOTTORE_FILE_ROOT = "dottore_frame_";
 
+void RiempiVett(StructPacco[], string[]);
+
 int LeggiPremiNulliDaFile(string, int, string[], int&);
 inline int NumeroRandomInRange(int, int);
 BOOL WINAPI test(DWORD);
 
 void DisegnaValigia(HANDLE, COORD, int);
-void DisegnaPartita(HANDLE, bool[], int, int, string);
-void DisegnaDottore(HANDLE, int, FrameData, string, int);
+void DisegnaPartita(HANDLE, StructPacco[], int, int, string, string);
+void DisegnaDottore(HANDLE, int, FrameData, string, string, int);
+void DisegnaSchermataFinale(HANDLE, int, string);
 
-float Gioco(HANDLE);
-float SchermataDottore(HANDLE);
+float Gioco(HANDLE, StructPacco[]);
+float SchermataDottore(HANDLE, int&, StructPacco[]);
 
-int ControllaInputGioco(int&, bool[]);
+int ControllaInputGioco(int&, StructPacco[]);
+bool ControllaInputDottore(int&);
 
 int main() 
 {
@@ -49,7 +67,16 @@ int main()
 	}
 	else
 	{
-		Gioco(hConsole);
+		srand(time(NULL)); //generazione seme per il random
+
+		string temp[25]; //vettore di string di 25 locazioni 
+		int lung = 0;
+		StructPacco vettPacchi[20];
+
+		LeggiPremiNulliDaFile("nulli.txt", 3, temp, lung);
+		RiempiVett(vettPacchi, temp);
+
+		Gioco(hConsole, vettPacchi);
 	}
 
 	SetConsoleCursorPosition(hConsole, { 0, SCREEN_SIZE.Y + 1 });
@@ -137,52 +164,36 @@ void DisegnaValigia(HANDLE hConsole, COORD coord, int num)
 }
 
 
-float Gioco(HANDLE hConsole)
+float Gioco(HANDLE hConsole, StructPacco vettPacchi[])
 {
 	int clock = 0;
 	int selected = 0;
 	int valigiaGiocatore = -1;
-	int valigieRimanenti = 20;
 	string messaggio = "Seleziona un pacco!!!";
+	string messaggio2 = "";
 	int res = 0;
 
-	bool valigie[20] = {
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-		true,
-	};
+	StructPacco pacco;
+	int numPacchi = 20, scelta, turniChiamata = 4, indPacco, eliminato, x;
+	float soldiPalio;
+	bool offertaDottore = false;
 
-	DisegnaPartita(hConsole, valigie, valigiaGiocatore, selected, messaggio);
+	bool dottore = false;
+
+	DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
 
 	do
 	{
-		res = (ControllaInputGioco(selected, valigie));
+		res = (ControllaInputGioco(selected, vettPacchi));
 
 		if (AggiornaClock(OttieniDelta(), 4, clock) || res == 1)
-			DisegnaPartita(hConsole, valigie, valigiaGiocatore, selected, messaggio);
+			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
 
 		if (res == 2)
 		{
-			valigie[selected] = false;
+			vettPacchi[selected].chiuso = false;
 			valigiaGiocatore = selected;
-			valigieRimanenti--;
+			numPacchi--;
 
 			messaggio = "Hai selezionato il pacco " + to_string(selected + 1) + (string)"!";
 
@@ -190,55 +201,130 @@ float Gioco(HANDLE hConsole)
 			if (selected > 19)
 				selected = 0;
 
-			DisegnaPartita(hConsole, valigie, valigiaGiocatore, selected, messaggio);
+			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
 		}
 	} while (res != 2);
 
-	while (valigieRimanenti > 0)
+	turniChiamata = NumeroRandomInRange(2, 4);
+	while (numPacchi > 0 && !offertaDottore)
 	{
-		int res = (ControllaInputGioco(selected, valigie));
+		int res = (ControllaInputGioco(selected, vettPacchi));
 
 		if (AggiornaClock(OttieniDelta(), 4, clock) || res == 1)
-			DisegnaPartita(hConsole, valigie, valigiaGiocatore, selected, messaggio);
+			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
 
-		if (res == 2)
+		if (res != 0 && dottore)
 		{
-			valigie[selected] = false;
-			valigieRimanenti--;
+			dottore = false;
+			turniChiamata = NumeroRandomInRange(2, 4);
+
+			soldiPalio = SchermataDottore(hConsole, valigiaGiocatore, vettPacchi);
+			if (soldiPalio != 0.0)
+				offertaDottore = true;
+		}
+		else if (res == 2)
+		{
+			vettPacchi[selected].chiuso = false;
+			numPacchi--;
 
 			messaggio = "Hai aperto il pacco " + to_string(selected + 1) + (string)"!";
+			messaggio2 = "Il pacco conteneva ";
+			if (vettPacchi[selected].contenuto == denaro)
+				messaggio2 += to_string(vettPacchi[selected].monte_premi);
+			else
+				messaggio2 += vettPacchi[selected].premio_scarto;
+			messaggio2 += "!!!";
 
-			if (valigieRimanenti > 0)
+			if (numPacchi > 0)
 			{
 				do {
 					selected++;
 					if (selected > 19)
 						selected = 0;
-				} while (!valigie[selected]);
+				} while (!vettPacchi[selected].chiuso);
 			}
 
-			SchermataDottore(hConsole);
+			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
 
-			DisegnaPartita(hConsole, valigie, valigiaGiocatore, selected, messaggio);
+			turniChiamata--;
+			if (turniChiamata == 0)
+				dottore = true;
 		}
 	}
+
+	string temp;
+	if (!offertaDottore)
+	{
+		temp = "Hai vinto ";
+		if (vettPacchi[valigiaGiocatore].contenuto == denaro)
+			temp += to_string(vettPacchi[valigiaGiocatore].monte_premi);
+		else
+			temp += vettPacchi[valigiaGiocatore].premio_scarto;
+		temp += "!!!";
+	}
+	else
+		temp = "Hai vinto " + to_string(soldiPalio) + "!!!";
+
+	DisegnaSchermataFinale(hConsole, clock, temp);
+	while (!((GetAsyncKeyState(VK_SPACE) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_RETURN) & KEY_JUST_PRESSED)))
+	{
+		if (AggiornaClock(OttieniDelta(), 2, clock))
+			DisegnaSchermataFinale(hConsole, clock, temp);
+	}
+			
 
 	return 0;
 }
 
 
-float SchermataDottore(HANDLE hConsole)
+float SchermataDottore(HANDLE hConsole, int& valigiaGiocatore, StructPacco vettPacchi[])
 {
 	FrameData dottore = GetAnimatedFramesFromFiles(DOTTORE_FILE_ROOT, 2);
 	int clock = 0;
 
-	DisegnaDottore(hConsole, clock, dottore, "aaaa", 0);
-	while (1)
+	int proposta;
+	proposta = NumeroRandomInRange(0, 10);
+	int soldi = NumeroRandomInRange(5000, 10000);
+	string messaggio = (proposta > 5) ? "Vuoi Scambiare" : "il dottore ti offre";
+	string messaggio2 = (proposta > 5) ? "il tuo pacco?" : (to_string(soldi) + " euro");
+
+	int selezione = 0;
+
+	DisegnaDottore(hConsole, clock, dottore, messaggio, messaggio2, selezione);
+	while (!((GetAsyncKeyState(VK_SPACE) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_RETURN) & KEY_JUST_PRESSED)))
 	{
-		if (AggiornaClock(OttieniDelta(), 2, clock))
+		if (AggiornaClock(OttieniDelta(), 2, clock) || ControllaInputDottore(selezione))
 		{
-			DisegnaDottore(hConsole, clock, dottore, "aaaa", 0);
+			DisegnaDottore(hConsole, clock, dottore, messaggio, messaggio2, selezione);
 		}
+	}
+
+	if (!selezione) //	selezione == 0
+	{
+		if (proposta > 5)
+		{
+			int	selez = 0;
+			while (!vettPacchi[selez].chiuso)
+				selez++;
+
+			int res;
+			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selez, "Seleziona un pacco", "");
+			do
+			{
+				res = (ControllaInputGioco(selez, vettPacchi));
+
+				if (AggiornaClock(OttieniDelta(), 4, clock) || res == 1)
+					DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selez, "Seleziona un pacco", "");
+
+			} while (res != 2);
+
+			vettPacchi[valigiaGiocatore].chiuso = true;
+			valigiaGiocatore = selez;
+			vettPacchi[valigiaGiocatore].chiuso = false;
+			return 0.0;
+		}
+		else
+			return soldi;
 	}
 
 	delete[] dottore;
@@ -246,7 +332,7 @@ float SchermataDottore(HANDLE hConsole)
 }
 
 
-void DisegnaDottore(HANDLE hConsole, int clock, FrameData dottore, string domanda, int selezione)
+void DisegnaDottore(HANDLE hConsole, int clock, FrameData dottore, string domanda, string domanda2, int selezione)
 {
 	_CLS;
 	DrawBorders(hConsole, SCREEN_SIZE);
@@ -259,24 +345,25 @@ void DisegnaDottore(HANDLE hConsole, int clock, FrameData dottore, string domand
 		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "DOTTORE", FOREGROUND_RED | FOREGROUND_GREEN, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
 
 	DrawStringCentered(hConsole, domanda, { SCREEN_SIZE.X / 2, 5 });
+	DrawStringCentered(hConsole, domanda2, { SCREEN_SIZE.X / 2, 6 });
 
 	if (selezione)
 	{
 		SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
-		DrawStringCentered(hConsole, "ACCETTA LA PROPOSTA", { SCREEN_SIZE.X / 2, 7 });
+		DrawStringCentered(hConsole, "ACCETTA LA PROPOSTA", { SCREEN_SIZE.X / 2, 8 });
 
 		SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
-		DrawStringCentered(hConsole, "IGNORA LA PROPOSTA", { SCREEN_SIZE.X / 2, 8 });
+		DrawStringCentered(hConsole, "IGNORA LA PROPOSTA", { SCREEN_SIZE.X / 2, 9 });
 
 		SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
 	}
 	else
 	{
 		SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
-		DrawStringCentered(hConsole, "ACCETTA LA PROPOSTA", { SCREEN_SIZE.X / 2, 7 });
+		DrawStringCentered(hConsole, "ACCETTA LA PROPOSTA", { SCREEN_SIZE.X / 2, 8 });
 
 		SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
-		DrawStringCentered(hConsole, "IGNORA LA PROPOSTA", { SCREEN_SIZE.X / 2, 8 });
+		DrawStringCentered(hConsole, "IGNORA LA PROPOSTA", { SCREEN_SIZE.X / 2, 9 });
 	}
 
 }
@@ -287,7 +374,7 @@ void DisegnaDottore(HANDLE hConsole, int clock, FrameData dottore, string domand
 *	Disegna la partita.
 *	DESCRIZONE DA AMPLIARE
 */
-void DisegnaPartita(HANDLE hConsole, bool valigie[], int valigaGiocatore, int selected, string messaggio)
+void DisegnaPartita(HANDLE hConsole, StructPacco valigie[], int valigaGiocatore, int selected, string messaggio, string messaggio2)
 {
 	_CLS;
 
@@ -297,7 +384,7 @@ void DisegnaPartita(HANDLE hConsole, bool valigie[], int valigaGiocatore, int se
 
 	for (int i = 0; i < NUMERO_VALIGIE; i++)
 	{
-		if (valigie[i])
+		if (valigie[i].chiuso)
 		{
 			if (selected == i)
 			{
@@ -329,10 +416,33 @@ void DisegnaPartita(HANDLE hConsole, bool valigie[], int valigaGiocatore, int se
 
 	SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN);
 	DrawStringAtPos(hConsole, messaggio, { 2, SCREEN_SIZE.Y - 2 });
+	DrawStringAtPos(hConsole, messaggio2, { 2, SCREEN_SIZE.Y - 1 });
 	SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
 }
 
-int ControllaInputGioco(int& selection, bool valigie[])
+
+void DisegnaSchermataFinale(HANDLE hConsole, int clock, string messaggio)
+{
+	_CLS;
+
+	DrawBorders(hConsole, SCREEN_SIZE);
+
+
+	
+	if (clock)
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "AFFARI TUOI", FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+	else
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "AFFARI TUOI", FOREGROUND_RED, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+
+
+	if (clock)
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, SCREEN_SIZE.Y / 2 }, messaggio, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+	else
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, SCREEN_SIZE.Y / 2 }, messaggio, FOREGROUND_RED | FOREGROUND_GREEN, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+}
+
+
+int ControllaInputGioco(int& selection, StructPacco valigie[])
 {
 	if (GetAsyncKeyState(VK_UP) & KEY_JUST_PRESSED || (GetAsyncKeyState(VK_DOWN) & KEY_JUST_PRESSED))
 	{
@@ -340,7 +450,7 @@ int ControllaInputGioco(int& selection, bool valigie[])
 		target += 10;
 		target %= 20;
 
-		if (valigie[target])
+		if (valigie[target].chiuso)
 			selection = target;
 
 		return 1;
@@ -352,7 +462,7 @@ int ControllaInputGioco(int& selection, bool valigie[])
 			selection--;
 			if (selection < 0)
 				selection = 19;
-		} while (!valigie[selection]);
+		} while (!valigie[selection].chiuso);
 		return 1;
 	}
 	if (GetAsyncKeyState(VK_RIGHT) & KEY_JUST_PRESSED)
@@ -362,7 +472,7 @@ int ControllaInputGioco(int& selection, bool valigie[])
 			selection++;
 			if (selection > 19)
 				selection = 0;
-		} while (!valigie[selection]);
+		} while (!valigie[selection].chiuso);
 		return 1;
 	}
 	if ((GetAsyncKeyState(VK_SPACE) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_RETURN) & KEY_JUST_PRESSED))
@@ -398,4 +508,41 @@ bool ControllaSelectionMenuKeys(int& selection)
 	}
 
 	return false;
+}
+
+
+bool ControllaInputDottore(int& selection)
+{
+	if ((GetAsyncKeyState(VK_UP) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_DOWN) & KEY_JUST_PRESSED))
+	{
+		selection = !selection;
+		return true;
+	}
+	if (GetAsyncKeyState(0x31)) //	1
+	{
+		selection = 0;
+		return true;
+	}
+	if (GetAsyncKeyState(0x32))	//	2
+	{
+		selection = 1;
+		return true;
+	}
+
+	return false;
+}
+
+
+void RiempiVett(StructPacco vettPacchi[], string temp[])
+{
+	for (int i = 0; i < 3; i++)
+	{
+		vettPacchi[i].contenuto = oggetto;
+		vettPacchi[i].premio_scarto = temp[i];
+	}
+	for (int y = 3; y < 20; y++)
+	{
+		vettPacchi[y].contenuto = denaro;
+		vettPacchi[y].monte_premi = NumeroRandomInRange(200, 50000);
+	}
 }
