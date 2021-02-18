@@ -545,4 +545,14 @@ void RiempiVett(StructPacco vettPacchi[], string temp[])
 		vettPacchi[y].contenuto = denaro;
 		vettPacchi[y].monte_premi = NumeroRandomInRange(200, 50000);
 	}
+
+	for (int i = 0; i < NumeroRandomInRange(10, 100); i++)
+	{
+		int ind1 = NumeroRandomInRange(0, 19);
+		int ind2 = NumeroRandomInRange(0, 19);
+
+		StructPacco p = vettPacchi[ind1];
+		vettPacchi[ind1] = vettPacchi[ind2];
+		vettPacchi[ind2] = p;
+	}
 }
