@@ -5,7 +5,7 @@
 *		Questo file contiene le implementazioni delle funzioni che servono per
 *		Disegnare caratteri, stringhe, scatole e altro sulla console.
 */
-#include "gfx.h"
+#include "base.h"
 #include <fstream>
 #include <string>
 #include <sstream>
@@ -211,8 +211,9 @@ void ShowCursor(HANDLE hConsole)
 }
 
 
+
 /*	Funzione GetAnimatedFramesFromFiles
-*	
+*
 *	Prende i frame da disegnare da file multipli.
 *	Il codice cerca nei file fileRoot + numero frame.
 *	Se non trova uno o più file ritorna NULL.
@@ -223,7 +224,7 @@ FrameData GetAnimatedFramesFromFiles(string fileRoot, int spriteNumber)
 {
 	//	Alloco FrameData
 	FrameData frames = new string[spriteNumber];
-	
+
 	fstream file;
 	string filePath, temp;
 
@@ -255,7 +256,7 @@ FrameData GetAnimatedFramesFromFiles(string fileRoot, int spriteNumber)
 
 
 /*	Funzione DrawFrame
-* 
+*
 *	Prende FrameData e disegna un frame ad una determinata coordinata.
 *	Utilizziamo una stringstram in modo da poter dividere la stringa in
 *	linee.

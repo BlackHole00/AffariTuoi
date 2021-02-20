@@ -139,15 +139,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="gfx.cpp" />
+    <ClCompile Include="gfx\base.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="menu.cpp" />
-    <ClCompile Include="timeUtilis.cpp" />
+    <ClCompile Include="utilis.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="gfx.h" />
+    <ClInclude Include="constants.h" />
+    <ClInclude Include="gfx\base.h" />
     <ClInclude Include="menu.h" />
-    <ClInclude Include="timeUtilis.h" />
+    <ClInclude Include="structPacco.h" />
+    <ClInclude Include="utilis.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -13,15 +13,6 @@ using namespace std;
 //	Macro
 #define _CLS system("cls")
 
-//	Da utilizzare con GetAsyncKeyState()
-#define KEY_JUST_PRESSED 0x01
-
-/*	Definizione di un nuovo tipo, che contiene i frame da disegnare.
-*	Sarebbe un array di stringhe, perciò dibbiamo ricordarci di liberare
-*		la memoria dopo che abbiamo finito di usarlo (con delete[]).
-*/
-typedef string* FrameData;
-
 /*	Un enum che viene utilizzato nella funzione DrawLine().
 *	Serve pe indicare se disegnare una linea verticalmente ed
 *		orizzontalmente.
@@ -30,6 +21,12 @@ enum TipoLinea {
 	Orizzontale,
 	Verticale
 };
+
+/*	Definizione di un nuovo tipo, che contiene i frame da disegnare.
+*	Sarebbe un array di stringhe, perciò dibbiamo ricordarci di liberare
+*		la memoria dopo che abbiamo finito di usarlo (con delete[]).
+*/
+typedef string* FrameData;
 
 /*	Per le funzioni più utilizzate vengono dichiarate come inline.
 *	Questo permette di chiamare le funzioni più velocemente (sebbene

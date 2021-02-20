@@ -1,4 +1,4 @@
-#include "timeUtilis.h"
+#include "utilis.h"
 #include <iostream>
 
 /*	Funzione OttieniDelta
@@ -43,4 +43,9 @@ bool AggiornaClock(float delta, int valoreMassimoClock, int& clock)
 	}
 
 	return false;
+}
+
+extern inline int NumeroRandomInRange(int min, int max)
+{
+	return (rand() % (max - min + 1)) + min;
 }

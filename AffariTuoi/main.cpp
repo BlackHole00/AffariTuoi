@@ -1,100 +1,71 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <sstream>
 #include <Windows.h>
 using namespace std;
 
-#include "gfx.h"
+#include "gfx/base.h"
 #include "menu.h"
-#include "timeUtilis.h"
 
-enum TipoPacco
-{
-	denaro,
-	oggetto
-};
+#include "utilis.h"
 
-struct StructPacco
-{
-	bool chiuso = true;
-	TipoPacco contenuto;
-	float monte_premi;
-	string premio_scarto;
-};
+#include "constants.h"
+#include "structPacco.h"
 
-const COORD GRANDEZZA_VALIGIA = { 3, 2 };
-const COORD SCREEN_SIZE = { 43, 12 };
-const int NUMERO_VALIGIE = 20;
 
-const string DOTTORE_FILE_ROOT = "dottore_frame_";
+void RiempiVett(StructPacco[], int);
 
-void RiempiVett(StructPacco[], string[]);
+int LeggiPremiNulliDaFile(int, StructPacco[]);
 
-int LeggiPremiNulliDaFile(string, int, string[], int&);
-inline int NumeroRandomInRange(int, int);
-BOOL WINAPI test(DWORD);
 
 void DisegnaValigia(HANDLE, COORD, int);
 void DisegnaPartita(HANDLE, StructPacco[], int, int, string, string);
 void DisegnaDottore(HANDLE, int, FrameData, string, string, int);
 void DisegnaSchermataFinale(HANDLE, int, string);
+void DisegnaSchermataCaricamento(HANDLE);
 
-float Gioco(HANDLE, StructPacco[]);
+string Gioco(HANDLE, int);
 float SchermataDottore(HANDLE, int&, StructPacco[]);
+void SchermataFinale(HANDLE, string);
 
 int ControllaInputGioco(int&, StructPacco[]);
 bool ControllaInputDottore(int&);
+
+void SalvaStatoPartita(StructPacco[], int);
+void CarcaPartita(StructPacco[], int&, int&);
+
 
 int main() 
 {
 	//	Inilizzazione caratteri random
 	srand(time(NULL));
 
+	//	Otteniamo l'handle della console
 	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-	SetConsoleCtrlHandler(test, TRUE);
 
-	string temp[25];
-	int lung = 0;
-
-	LeggiPremiNulliDaFile("nulli.txt", 3, temp, lung);
-
-	int res = Menu(hConsole, SCREEN_SIZE);
+	//	Chiamiamo il menu
+	int res = Menu(hConsole);
 	_CLS;
-	if (res)	//	res == 1
-	{
-		SetConsoleCursorPosition(hConsole, { 0, 0 });
-		DrawStringAtPos(hConsole, "DA IMPLEMENTARE!!!\n", {0, 0});
-	}
-	else
-	{
-		srand(time(NULL)); //generazione seme per il random
 
-		string temp[25]; //vettore di string di 25 locazioni 
-		int lung = 0;
-		StructPacco vettPacchi[20];
+	SchermataFinale(hConsole, Gioco(hConsole, res));
 
-		LeggiPremiNulliDaFile("nulli.txt", 3, temp, lung);
-		RiempiVett(vettPacchi, temp);
-
-		Gioco(hConsole, vettPacchi);
-	}
-
+	//	Mettiamo il cursore alla fine della finesta, in modo che i messaggi di chiusura non sovrescrivano lo schermo
 	SetConsoleCursorPosition(hConsole, { 0, SCREEN_SIZE.Y + 1 });
 
 	return 0;
 }
 
 
-int LeggiPremiNulliDaFile(string filePath, int numPremi, string vectPremi[], int& lungVect)
+int LeggiPremiNulliDaFile(int numPremi, StructPacco vectPremi[])
 {
 	fstream file;
-	file.open(filePath.c_str(), ios::in);
+	file.open(FILE_PREMI_NULLI.c_str(), ios::in);
 
 	string temp;
 
 	if (file.is_open())
 	{
-		lungVect = 0;
 
 		//	TODO trova un metodo per evitare di fare questo ciclo.
 		int fileLung = 0;
@@ -112,15 +83,17 @@ int LeggiPremiNulliDaFile(string filePath, int numPremi, string vectPremi[], int
 
 
 		int i = 0;
-		lungVect = 0;
-		while (lungVect < numPremi)
+		int j = 0;
+		while (j < numPremi)
 		{
 			getline(file, temp);
 
-			if (i == vect[lungVect])
+			if (i == vect[j])
 			{
-				vectPremi[lungVect] = temp;
-				lungVect++;
+				vectPremi[j].contenuto = oggetto;
+				vectPremi[j].chiuso = true;
+				vectPremi[j].premioScarto = temp;
+				j++;
 			}
 
 			i++;
@@ -131,18 +104,6 @@ int LeggiPremiNulliDaFile(string filePath, int numPremi, string vectPremi[], int
 	}
 	else
 		return -1;
-}
-
-inline int NumeroRandomInRange(int min, int max)
-{
-	return (rand() % (max - min + 1)) + min;
-}
-
-BOOL WINAPI test(DWORD fdwCtrlType)
-{
-	system("echo funzia! > test.txt");
-
-	return false;
 }
 
 
@@ -164,48 +125,65 @@ void DisegnaValigia(HANDLE hConsole, COORD coord, int num)
 }
 
 
-float Gioco(HANDLE hConsole, StructPacco vettPacchi[])
+string Gioco(HANDLE hConsole, int load)
 {
 	int clock = 0;
 	int selected = 0;
-	int valigiaGiocatore = -1;
 	string messaggio = "Seleziona un pacco!!!";
 	string messaggio2 = "";
 	int res = 0;
 
-	StructPacco pacco;
+	StructPacco vettPacchi[20];
+
+	int valigiaGiocatore = -1;
 	int numPacchi = 20, scelta, turniChiamata = 4, indPacco, eliminato, x;
 	float soldiPalio;
 	bool offertaDottore = false;
 
 	bool dottore = false;
 
-	DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
-
-	do
+	if (load)
 	{
-		res = (ControllaInputGioco(selected, vettPacchi));
+		DisegnaSchermataCaricamento(hConsole);
 
-		if (AggiornaClock(OttieniDelta(), 4, clock) || res == 1)
-			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
+		CarcaPartita(vettPacchi, valigiaGiocatore, numPacchi);
 
-		if (res == 2)
-		{
-			vettPacchi[selected].chiuso = false;
-			valigiaGiocatore = selected;
-			numPacchi--;
-
-			messaggio = "Hai selezionato il pacco " + to_string(selected + 1) + (string)"!";
-
+		while (!vettPacchi[selected].chiuso)
 			selected++;
-			if (selected > 19)
-				selected = 0;
+	}
+	else
+	{
+		//Creiamo il vettore dei pacchi e chiediamo di scegliere un pacco iniziale.
 
-			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
-		}
-	} while (res != 2);
+		LeggiPremiNulliDaFile(NUM_PREMI_NULLI, vettPacchi);
+		RiempiVett(vettPacchi, NUM_PREMI_NULLI);
 
-	turniChiamata = NumeroRandomInRange(2, 4);
+		DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
+		do
+		{
+			res = (ControllaInputGioco(selected, vettPacchi));
+
+			if (AggiornaClock(OttieniDelta(), 4, clock) || res == 1)
+				DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
+
+			if (res == 2)
+			{
+				vettPacchi[selected].chiuso = false;
+				valigiaGiocatore = selected;
+				numPacchi--;
+
+				messaggio = "Hai selezionato il pacco " + to_string(selected + 1) + (string)"!";
+
+				selected++;
+				if (selected > 19)
+					selected = 0;
+
+				DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
+			}
+		} while (res != 2);
+	}
+
+	turniChiamata = NumeroRandomInRange(MIN_INTERVALLO_DOTTORE, MAX_INTERVALLO_DOTTORE);
 	while (numPacchi > 0 && !offertaDottore)
 	{
 		int res = (ControllaInputGioco(selected, vettPacchi));
@@ -215,6 +193,8 @@ float Gioco(HANDLE hConsole, StructPacco vettPacchi[])
 
 		if (res != 0 && dottore)
 		{
+			SalvaStatoPartita(vettPacchi, valigiaGiocatore);
+
 			dottore = false;
 			turniChiamata = NumeroRandomInRange(2, 4);
 
@@ -230,9 +210,9 @@ float Gioco(HANDLE hConsole, StructPacco vettPacchi[])
 			messaggio = "Hai aperto il pacco " + to_string(selected + 1) + (string)"!";
 			messaggio2 = "Il pacco conteneva ";
 			if (vettPacchi[selected].contenuto == denaro)
-				messaggio2 += to_string(vettPacchi[selected].monte_premi);
+				messaggio2 += to_string((int)vettPacchi[selected].montePremi);
 			else
-				messaggio2 += vettPacchi[selected].premio_scarto;
+				messaggio2 += vettPacchi[selected].premioScarto;
 			messaggio2 += "!!!";
 
 			if (numPacchi > 0)
@@ -257,23 +237,15 @@ float Gioco(HANDLE hConsole, StructPacco vettPacchi[])
 	{
 		temp = "Hai vinto ";
 		if (vettPacchi[valigiaGiocatore].contenuto == denaro)
-			temp += to_string(vettPacchi[valigiaGiocatore].monte_premi);
+			temp += to_string((int)vettPacchi[valigiaGiocatore].montePremi);
 		else
-			temp += vettPacchi[valigiaGiocatore].premio_scarto;
+			temp += vettPacchi[valigiaGiocatore].premioScarto;
 		temp += "!!!";
 	}
 	else
-		temp = "Hai vinto " + to_string(soldiPalio) + "!!!";
+		temp = "Hai vinto " + to_string((int)soldiPalio) + "!!!";		
 
-	DisegnaSchermataFinale(hConsole, clock, temp);
-	while (!((GetAsyncKeyState(VK_SPACE) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_RETURN) & KEY_JUST_PRESSED)))
-	{
-		if (AggiornaClock(OttieniDelta(), 2, clock))
-			DisegnaSchermataFinale(hConsole, clock, temp);
-	}
-			
-
-	return 0;
+	return temp;
 }
 
 
@@ -421,6 +393,18 @@ void DisegnaPartita(HANDLE hConsole, StructPacco valigie[], int valigaGiocatore,
 }
 
 
+void SchermataFinale(HANDLE hConsole, string messaggio)
+{
+	int clock = 0;
+	DisegnaSchermataFinale(hConsole, clock, messaggio);
+	while (!((GetAsyncKeyState(VK_SPACE) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_RETURN) & KEY_JUST_PRESSED)))
+	{
+		if (AggiornaClock(OttieniDelta(), 2, clock))
+			DisegnaSchermataFinale(hConsole, clock, messaggio);
+	}
+}
+
+
 void DisegnaSchermataFinale(HANDLE hConsole, int clock, string messaggio)
 {
 	_CLS;
@@ -428,7 +412,6 @@ void DisegnaSchermataFinale(HANDLE hConsole, int clock, string messaggio)
 	DrawBorders(hConsole, SCREEN_SIZE);
 
 
-	
 	if (clock)
 		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "AFFARI TUOI", FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
 	else
@@ -533,21 +516,20 @@ bool ControllaInputDottore(int& selection)
 }
 
 
-void RiempiVett(StructPacco vettPacchi[], string temp[])
+void RiempiVett(StructPacco vettPacchi[], int numPremiNulli)
 {
-	for (int i = 0; i < 3; i++)
-	{
-		vettPacchi[i].contenuto = oggetto;
-		vettPacchi[i].premio_scarto = temp[i];
-	}
-	for (int y = 3; y < 20; y++)
+	int pos1, pos2;
+	int vettSoldi[20] = { 1, 5, 10, 50, 100, 250, 500, 1000, 2500, 5000, 7500, 10000, 15000, 20000, 25000, 30000, 50000, 60000, 75000, 100000 };
+
+	for (int y = numPremiNulli; y < 20; y++)
 	{
 		vettPacchi[y].contenuto = denaro;
-		vettPacchi[y].monte_premi = NumeroRandomInRange(200, 50000);
+		vettPacchi[y].chiuso = true;
+		vettPacchi[y].montePremi = vettSoldi[y];
 	}
-
-	for (int i = 0; i < NumeroRandomInRange(10, 100); i++)
+	for (int j = 0; j < 25; j++)
 	{
+		//scambio due posizioni 25 volte
 		int ind1 = NumeroRandomInRange(0, 19);
 		int ind2 = NumeroRandomInRange(0, 19);
 
@@ -555,4 +537,85 @@ void RiempiVett(StructPacco vettPacchi[], string temp[])
 		vettPacchi[ind1] = vettPacchi[ind2];
 		vettPacchi[ind2] = p;
 	}
+}
+
+
+void DisegnaSchermataCaricamento(HANDLE hConsole)
+{
+	_CLS;
+	
+	DrawBorders(hConsole, SCREEN_SIZE);
+	DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, SCREEN_SIZE.Y / 2 }, "CARICAMENTO", FOREGROUND_RED | FOREGROUND_GREEN, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+}
+
+
+void SalvaStatoPartita(StructPacco listaPacchi[], int indicePacco)
+{
+	fstream myfile;
+	myfile.open(FILE_SALVATAGGIO.c_str(), ios::out);
+	if (myfile.is_open())
+	{
+		for (int i = 0; i < 20; i++)
+		{
+			myfile << listaPacchi[i].chiuso << " "; //inserisco se chiuso o meno
+			myfile << listaPacchi[i].contenuto << " "; //inserisco se sono soldi o oggetti
+			if (listaPacchi[i].contenuto == denaro)
+				myfile << listaPacchi[i].montePremi;
+			else
+				myfile << listaPacchi[i].premioScarto;
+			myfile << endl;
+		}
+		myfile << indicePacco;
+		myfile << endl;
+
+		myfile.close();
+	}
+}
+
+
+void CarcaPartita(StructPacco listaPacchi[], int& valigiaGiocatore, int& numPacchiAperti)
+{
+	fstream file;
+	string temp;
+
+	numPacchiAperti = 0;
+
+	file.open(FILE_SALVATAGGIO.c_str());
+	if (file.is_open())
+	{
+		int i = 0;
+		int tipo;
+
+		while (i <= 19)
+		{
+			stringstream ss;
+
+			getline(file, temp);
+
+			ss << temp;
+			ss >> listaPacchi[i].chiuso;
+			if (listaPacchi[i].chiuso)
+				numPacchiAperti++;
+
+			ss >> tipo;
+			listaPacchi[i].contenuto = (ContenutoPacco)tipo;
+
+			if (tipo == 0)
+				ss >> listaPacchi[i].montePremi;
+			else
+			{
+				getline(ss, temp);
+				listaPacchi[i].premioScarto = temp;
+			}
+
+			i++;
+		}
+
+		stringstream ss;
+		getline(file, temp);
+		ss << temp;
+		ss >> valigiaGiocatore;
+	}
+
+	file.close();
 }
