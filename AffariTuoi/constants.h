@@ -6,6 +6,8 @@
 
 const COORD GRANDEZZA_VALIGIA = { 3, 2 };
 const COORD SCREEN_SIZE = { 43, 12 };
+
+//	*NON CAMBIARE PER NESSUN ASSOLUTISSIMO MOTIVO!!!*
 const int NUMERO_VALIGIE = 20;
 
 const string DOTTORE_FILE_ROOT = "res/dottore_frame_";
@@ -19,3 +21,5 @@ const int NUM_PREMI_DENARO = NUMERO_VALIGIE - NUM_PREMI_NULLI;
 
 const int MIN_INTERVALLO_DOTTORE = 3;
 const int MAX_INTERVALLO_DOTTORE = 5;
+
+const int MENU_PAUSA_NUMERO_VOCI = 4;

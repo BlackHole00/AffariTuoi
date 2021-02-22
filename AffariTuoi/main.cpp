@@ -15,22 +15,27 @@ using namespace std;
 
 
 void RiempiVett(StructPacco[], int);
-
 int LeggiPremiNulliDaFile(int, StructPacco[]);
 
+void RiordinaVettore(StructPacco[]);
 
 void DisegnaValigia(HANDLE, COORD, int);
 void DisegnaPartita(HANDLE, StructPacco[], int, int, string, string);
 void DisegnaDottore(HANDLE, int, FrameData, string, string, int);
 void DisegnaSchermataFinale(HANDLE, int, string);
 void DisegnaSchermataCaricamento(HANDLE);
+void DisegnaMenuPausa(HANDLE, int);
+void DisegnaPremiRimanenti(HANDLE, StructPacco[], int, FrameData);
 
 string Gioco(HANDLE, int);
 float SchermataDottore(HANDLE, int&, StructPacco[]);
 void SchermataFinale(HANDLE, string);
+void MenuPausa(HANDLE, StructPacco[], int);
+void PremiRimanenti(HANDLE, StructPacco[], int);
 
 int ControllaInputGioco(int&, StructPacco[]);
 bool ControllaInputDottore(int&);
+int ControllaInputMenuPausa(int&);
 
 void SalvaStatoPartita(StructPacco[], int);
 void CarcaPartita(StructPacco[], int&, int&);
@@ -201,6 +206,17 @@ string Gioco(HANDLE hConsole, int load)
 			soldiPalio = SchermataDottore(hConsole, valigiaGiocatore, vettPacchi);
 			if (soldiPalio != 0.0)
 				offertaDottore = true;
+			else
+			{
+				while (!vettPacchi[selected].chiuso) {
+					selected++;
+					if (selected > 19)
+						selected = 0;
+				}
+			}
+
+
+			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
 		}
 		else if (res == 2)
 		{
@@ -217,11 +233,11 @@ string Gioco(HANDLE hConsole, int load)
 
 			if (numPacchi > 0)
 			{
-				do {
+				while (!vettPacchi[selected].chiuso) {
 					selected++;
 					if (selected > 19)
 						selected = 0;
-				} while (!vettPacchi[selected].chiuso);
+				}
 			}
 
 			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
@@ -229,6 +245,18 @@ string Gioco(HANDLE hConsole, int load)
 			turniChiamata--;
 			if (turniChiamata == 0)
 				dottore = true;
+		}
+		else if (res == 3)
+		{
+			MenuPausa(hConsole, vettPacchi, valigiaGiocatore);
+
+			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
+		}
+		else if (res == 4)
+		{
+			PremiRimanenti(hConsole, vettPacchi, valigiaGiocatore);
+
+			DisegnaPartita(hConsole, vettPacchi, valigiaGiocatore, selected, messaggio, messaggio2);
 		}
 	}
 
@@ -462,37 +490,11 @@ int ControllaInputGioco(int& selection, StructPacco valigie[])
 		return 2;
 	if (GetAsyncKeyState(VK_ESCAPE) & KEY_JUST_PRESSED)
 		return 3;
+	if (GetAsyncKeyState('P') & KEY_JUST_PRESSED)
+		return 4;
 
 	return 0;
 }
-
-
-/*	Funzione ControllaSelectionMenuKeys
-* 
-*	Serve a controllare gli input nel secondo menu della funzione menu.
-*	Cambia il valore di selection. Se selection cambia ritorniamo true.
-*/
-bool ControllaSelectionMenuKeys(int& selection)
-{
-	if ((GetAsyncKeyState(VK_UP) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_DOWN) & KEY_JUST_PRESSED))
-	{
-		selection = !selection;
-		return true;
-	}
-	if (GetAsyncKeyState(0x31)) //	1
-	{
-		selection = 0;
-		return true;
-	}
-	if (GetAsyncKeyState(0x32))	//	2
-	{
-		selection = 1;
-		return true;
-	}
-
-	return false;
-}
-
 
 bool ControllaInputDottore(int& selection)
 {
@@ -514,6 +516,195 @@ bool ControllaInputDottore(int& selection)
 
 	return false;
 }
+
+
+void MenuPausa(HANDLE hConsole, StructPacco vettPacchi[], int valigiaGiocatore)
+{
+	int clock = 0;
+	int selected = 0;
+	int res = -1;
+	bool shouldExit = false;
+
+	_CLS;
+	DisegnaMenuPausa(hConsole, selected);
+	while (res != 3 && !shouldExit)
+	{
+		res = ControllaInputMenuPausa(selected);
+
+		if (AggiornaClock(OttieniDelta(), 2, clock) || res == 1)
+		{
+			_CLS;
+			DisegnaMenuPausa(hConsole, selected);
+		}
+
+		if (res == 2)
+		{
+			switch (selected)
+			{
+			case 0:
+			{
+				shouldExit = true;
+				break;
+			}
+			case 1:
+			{
+				PremiRimanenti(hConsole, vettPacchi, valigiaGiocatore);
+
+				_CLS;
+				DisegnaMenuPausa(hConsole, selected);
+				break;
+			}
+			case 2:
+			{
+				SalvaStatoPartita(vettPacchi, valigiaGiocatore);
+
+				SetConsoleCursorPosition(hConsole, { 0, SCREEN_SIZE.Y + 1 });
+				exit(0);
+				break;
+			}
+			case 3:
+			{
+				SetConsoleCursorPosition(hConsole, { 0, SCREEN_SIZE.Y + 1 });
+				exit(0);
+			}
+			}
+		}
+	}
+}
+
+
+void DisegnaMenuPausa(HANDLE hConsole, int selected)
+{
+	DrawBorders(hConsole, SCREEN_SIZE);
+
+	if (clock)
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "PAUSA", FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+	else
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "PAUSA", FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+
+	if (selected == 0)
+		SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+	DrawStringCentered(hConsole, "RIPRENDI", { SCREEN_SIZE.X / 2, 5 });
+	SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+
+	if (selected == 1)
+		SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+	DrawStringCentered(hConsole, "VEDI I PREMI RIMANENTI", { SCREEN_SIZE.X / 2, 6 });
+	SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+
+	if (selected == 2)
+		SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+	DrawStringCentered(hConsole, "SALVA ED ESCI", { SCREEN_SIZE.X / 2, 7 });
+	SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+
+	if (selected == 3)
+		SetConsoleTextAttribute(hConsole, FOREGROUND_RED);
+	DrawStringCentered(hConsole, "ESCI SENZA SALVARE", { SCREEN_SIZE.X / 2, 8 });
+	SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+
+	SetConsoleTextAttribute(hConsole, FOREGROUND_BLUE);
+	DrawStringCentered(hConsole, "FRECCE: SCEGLI  SPAZIO: SELEZIONA", { SCREEN_SIZE.X / 2, SCREEN_SIZE.Y - 2 });
+	DrawStringCentered(hConsole, "P: PREMI RIMANENTI  ESC: MENU", { SCREEN_SIZE.X / 2, SCREEN_SIZE.Y - 1 });
+	SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+}
+
+
+int ControllaInputMenuPausa(int& selected)
+{
+	if ((GetAsyncKeyState(VK_DOWN) & KEY_JUST_PRESSED))
+	{
+		selected++;
+		if (selected >= MENU_PAUSA_NUMERO_VOCI)
+			selected = 0;
+
+		return 1;
+	}
+	else if ((GetAsyncKeyState(VK_UP) & KEY_JUST_PRESSED))
+	{
+		selected--;
+		if (selected < 0)
+			selected = MENU_PAUSA_NUMERO_VOCI - 1;
+
+		return 1;
+	}
+	else if ((GetAsyncKeyState(VK_RETURN) & KEY_JUST_PRESSED) || ((GetAsyncKeyState(VK_SPACE)) & KEY_JUST_PRESSED))
+		return 2;
+
+	if ((GetAsyncKeyState(VK_ESCAPE) & KEY_JUST_PRESSED))
+		return 3;
+
+	return 0;
+}
+
+
+
+void PremiRimanenti(HANDLE hConsole, StructPacco vettPacco[], int valigiaGiocatore)
+{
+	StructPacco temp[NUMERO_VALIGIE];
+	FrameData cassa = GetAnimatedFramesFromFiles(VALIGIA_FILE_ROOT, 4);
+	//	FINEZZA: L'animazione ricomincia da dove era stata lasciata
+	static int clock = 0;
+
+	for (int i = 0; i < NUMERO_VALIGIE; i++)
+		temp[i] = vettPacco[i];
+
+	temp[valigiaGiocatore].chiuso = true;
+	RiordinaVettore(temp);
+
+	_CLS;
+	DisegnaPremiRimanenti(hConsole, temp, clock, cassa);
+	while (!((GetAsyncKeyState(VK_RETURN) & KEY_JUST_PRESSED) || ((GetAsyncKeyState(VK_SPACE)) & KEY_JUST_PRESSED) || ((GetAsyncKeyState(VK_ESCAPE) & KEY_JUST_PRESSED)) || ((GetAsyncKeyState('P') & KEY_JUST_PRESSED))))
+	{
+		if (AggiornaClock(OttieniDelta(), 4, clock))
+		{
+			_CLS;
+			DisegnaPremiRimanenti(hConsole, temp, clock, cassa);
+		}
+	}
+
+
+	delete[] cassa;
+}
+
+
+void DisegnaPremiRimanenti(HANDLE hConsole, StructPacco vettPacco[], int clock, FrameData cassa)
+{
+	WORD attributoCorrente = FOREGROUND_RED;
+	COORD coord = { SCREEN_SIZE.X / 2 - 13, 2 };
+
+	DrawBorders(hConsole, SCREEN_SIZE);
+
+	if (clock % 2)
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "PREMI", FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+	else
+		DrawStringInBoxCentered(hConsole, { SCREEN_SIZE.X / 2, 2 }, "PREMI", FOREGROUND_GREEN | FOREGROUND_RED, FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_RED);
+
+	SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_RED);
+	DrawFrame(hConsole, cassa, clock, { SCREEN_SIZE.X / 2 - 6, SCREEN_SIZE.Y / 2 - 1 });
+	SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_BLUE);
+
+
+	for (short int i = 0; i < NUMERO_VALIGIE; i++, coord.Y++)
+	{
+		if (vettPacco[i].chiuso)
+			SetConsoleTextAttribute(hConsole, attributoCorrente);
+
+		if (vettPacco[i].contenuto == denaro)
+			DrawStringCentered(hConsole, to_string((int)vettPacco[i].montePremi), coord);
+		else
+			DrawStringCentered(hConsole, vettPacco[i].premioScarto, coord);
+
+		SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+
+		if (i == 9)
+		{
+			attributoCorrente = FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+
+			coord = { SCREEN_SIZE.X / 2 + 13, 1 };
+		}
+	}
+}
+
 
 
 void RiempiVett(StructPacco vettPacchi[], int numPremiNulli)
@@ -618,4 +809,35 @@ void CarcaPartita(StructPacco listaPacchi[], int& valigiaGiocatore, int& numPacc
 	}
 
 	file.close();
+}
+
+
+void RiordinaVettore(StructPacco vett[])
+{
+	StructPacco temp;
+	
+	for (int i = 0; i < NUMERO_VALIGIE - 1; i++)
+		for (int j = i; j < NUMERO_VALIGIE; j++)
+		{
+			if (vett[i].contenuto == oggetto)
+			{
+				if (vett[j].contenuto == oggetto)
+				{
+					if (vett[i].premioScarto > vett[j].premioScarto)
+						//ScambiaVars<StructPacco>(vett[i], vett[j]);
+					{
+						temp = vett[i];
+						vett[i] = vett[j];
+						vett[j] = temp;
+					}
+				}
+			}
+			else if (vett[j].contenuto == oggetto || (vett[i].montePremi > vett[j].montePremi))
+				//ScambiaVars<StructPacco>(vett[i], vett[j]);
+			{
+					temp = vett[i];
+					vett[i] = vett[j];
+					vett[j] = temp;
+			}
+		}
 }

@@ -2,6 +2,7 @@
 #include "utilis.h"
 #include "constants.h"
 
+
 /*	Funzione Menu
 *
 *	Disegna il menu principale (che è più estetico), poi chiede all'utente se
@@ -49,6 +50,7 @@ int Menu(HANDLE hConsole)
 
 	return selected;
 }
+
 
 /*	Funzione DrawMainMenu
 *
@@ -126,4 +128,26 @@ void DrawSelectionMenu(HANDLE hConsole, int clock, int selection)
 	DrawBox(hConsole, { SCREEN_SIZE.X / 2 - 7, 6 }, { SCREEN_SIZE.X / 2 + 7, 9 });
 
 	DrawStringCentered(hConsole, "FRECCE: Seleziona INVIO: Accetta", { SCREEN_SIZE.X / 2 + 1, 11 });
+}
+
+
+/*	Funzione ControllaSelectionMenuKeys
+*
+*	Serve a controllare gli input nel secondo menu della funzione menu.
+*	Cambia il valore di selection. Se selection cambia ritorniamo true.
+*/
+bool ControllaSelectionMenuKeys(int& selection)
+{
+	if ((GetAsyncKeyState(VK_UP) & KEY_JUST_PRESSED) || (GetAsyncKeyState(VK_DOWN) & KEY_JUST_PRESSED))
+	{
+		selection = !selection;
+		return true;
+	}
+	if (GetAsyncKeyState(0x31) || GetAsyncKeyState(0x32)) //	1 o 2
+	{
+		selection = !selection;
+		return true;
+	}
+
+	return false;
 }

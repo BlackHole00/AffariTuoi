@@ -45,7 +45,7 @@ bool AggiornaClock(float delta, int valoreMassimoClock, int& clock)
 	return false;
 }
 
-extern inline int NumeroRandomInRange(int min, int max)
+int NumeroRandomInRange(int min, int max)
 {
 	return (rand() % (max - min + 1)) + min;
 }
